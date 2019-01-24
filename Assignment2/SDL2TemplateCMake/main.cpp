@@ -124,7 +124,7 @@ int main(int argc, char* args[]) {
 			update(texture, canvas, renderer);
 		}
 		else if(choice == 3){
-			int x1, y1, x2, y2, colour;
+			int x1, y1, x2, y2, colour = 0x000000FF;
 			std::cout << "Enter End Points (X1 Y1 X2 Y2 Colour)";
 			std::cin >> x1 >> y1 >> x2 >> y2;
 			
@@ -137,7 +137,7 @@ int main(int argc, char* args[]) {
 			int c = y2 - m*x2;
 			for(int linex = x1; linex <= x2; linex++){
 				int liney = m*linex + c;
-				pixels[liney][linex] = 0x000000FF;
+				pixels[liney][linex] = colour;
 			}
 			update(texture, canvas, renderer);
 

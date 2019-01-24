@@ -1,109 +1,88 @@
-UWindsor COMP-3520 SDL2 Project Template (CMake version)
-===
+﻿# Assignment 2 - January 25, 2019
 
-*** NEW: For a live demo of the floordemo branch, [click here](https://inbetweennames.github.io/SDL2TemplateCMake/) *** 
+To download the solution, please clone my repository and ensure that you have the correct libraries required. Find those libraries and instructions [here](https://github.com/InBetweenNames/SDL2TemplateCMake).
 
-This template is intended for students in the COMP-3520 Introduction to Computer Graphics course
-at the University of Windsor, however it should serve as a useful template for anyone interested in
-getting started with the [SDL2](http://libsdl.org/) library quickly on non-Windows platforms.
-In contrast to the [Visual Studio template](https://github.com/InBetweenNames/SDL2Template), this version
-uses dynamic linking by default and uses your installed system libraries.
 
-The following dependencies are required:
-* [CMake](https://cmake.org/)
-* [SDL2](http://libsdl.org/) 
-* [SDL2_ttf](https://www.libsdl.org/projects/SDL_ttf/) library for easy text rendering
-* [freetype2](https://www.freetype.org/) which `SDL2_ttf` uses for the actual work
+# Interacting with the program
 
-It's very easy to get started with SDL2 on most linux distributions.  Just ensure you have the above packages installed along with their header files (usually requires a `-dev` package)
+Once you successfully build and run the assignment, you will be greeted with an interactive menu. You have choices to exit, draw points, draw a line, and draw a circle. Each of those options may have sub options such as choosing number of points to draw, translating, rotating, and scaling. After each iteration of the menu, the canvas will be erased and you will be able to choose a new option.
 
-On Debian based systems, the packages will probably be called `libsdl2-dev` and `libsdl2-ttf-dev`.
-On Arch Linux, look for the packages `sdl2` and `sdl2_ttf`.
+## Fucntions
+I created two helper functions. One being to update the canvas, and the other to erase it.
 
-Mac users should be able to use Homebrew or a similar package manager to install the needed dependencies.
-If you need help, just send me an email.
+Both can be found here.
 
-Setup
----
+```c++
+void update(SDL_Texture* texture, SDL_Surface* canvas, SDL_Renderer* renderer){
+	SDL_UpdateTexture(texture, NULL, canvas->pixels, canvas->pitch);
+	SDL_RenderCopy(renderer, texture, NULL, NULL);
+	SDL_RenderPresent(renderer);
+}
+```
 
-Once you've installed these packages, you'll be all set to start your first assignment.
-Clone this repository somewhere using Git (in a shell):
+```c++
+void erase(uint32_t (*pixels)[SCREEN_WIDTH], SDL_Texture* texture, SDL_Surface* canvas, SDL_Renderer* renderer){	
 
-~~~
-git clone https://github.com/InBetweenNames/SDL2TemplateCMake.git
-cd SDL2TemplateCMake
-~~~
+	for(int i = 0; i < SCREEN_HEIGHT; i++){
+		for(int j = 0; j < SCREEN_WIDTH; j++){
+			pixels[i][j] = 0xFFFFFFFF;
+		}
+	}
 
-Next, enter the build directory:
+	update(texture, canvas, renderer);
+}
+```
 
-~~~
-cd build
-~~~
+## Explaining the Code
+I will explain the code for each action you can perform with the program.
 
-Run CMake:
+**Draw Points**
 
-~~~
-cmake ..
-~~~
+The user will immediately be asked to pick a number of points between [1-5]. If the user enters an incorrect number of points, they will be forced to enter a new number until a valid input is entered. After the person enters a valid input, the program will loop and ask the user to enter the coordinates and colour for each point and then draw it.
+```c++
+for(int i = 0; i < numberOfPoints; i++){
+	std::cout << "Point " << i + 1 << " (X Y Colour)" <<std::endl;
+	std::cin >> x >> y >> colour;
+	pixels[x][y] = 0x000000FF;
+}
+```
+<br/>
+<br/>
 
-If this runs without errors, you're ready to build:
+**Draw a Line**
 
-~~~
-cmake --build .
-~~~
+The user will be asked to enter the two end points as well as the colour of the line. Based on the algorithm we were given to draw a line, some edge cases arise. The algorithm will break if the second end point's x value is smaller than the first's. To fix this, I check for this and swap the lines when necessary. The algorithm can be found below.
 
-Now, run the demo:
+```c++
+int m = (y2-y1)/(x2-x1);
+int c = y2 - m*x2;
+for(int linex = x1; linex <= x2; linex++){
+	int liney = m*linex + c;
+	pixels[liney][linex] = colour;
+}
+```
 
-~~~
-./main
-~~~
+After the line is drawn, the user will be asked whether they want to rotate the line about the origin, or to translate it. The translating part is easy, you simply add the  x offset and the y offset to each end point. The rotation is a little more difficult. Since our line is not necessarily at the origin, we must translate it there first, then rotate it, and then finally translate it back to its original position. The code can be found below.
 
-Note that `iosevka-regular.ttf` must be in the working directory of `main` for it to work.
-In practice, this means you need to be in the `build` directory when running `main`.
-I would welcome a pull request that removes this restriction.
+```c++
+int midX = (SCREEN_WIDTH / 2) - 1;
+int midY = (SCREEN_HEIGHT / 2) - 1;
+for(int i = x1; i <= x2; i++){
+	int j = m*i + c;
+	double xPrime;
+	double yPrime;
+	
+	xPrime = (cos(angle)*((double) i-midX)) - (sin(angle)*((double) j-midY));
+	yPrime = (sin(angle)*((double) i-midX)) + (cos(angle)*((double) j-midY));
+ 
+	int iFinal = (int) std::round(xPrime + midX);
+	int jFinal = (int) std::round(yPrime + midY);
+	pixels[jFinal][iFinal] = 0xFF0000FF; 
+}
+```
+<br/>
+<br/>
 
-Setup for Emscripten
----
+**Draw a Circle**
 
-This template now supports building using [Emscripten](https://kripken.github.io/emscripten-site/) for compiling your SDL2-based
-C or C++ code directly to your web browser using WebAssembly.  To use it, ensure you have the [Emscripten SDK](https://github.com/emscripten-core/emsdk)
-installed and in your PATH (use `emsdk install` and `emsdk activate`, following all instructions), and then:
-
-~~~
-cd build-wasm
-./build_with_emscripten.sh
-~~~
-
-This will configure, compile, link, and run your project directly in your web browser.
-
-The demo
----
-
-The demo code will change periodically to help you with your newest assignments.
-You can clone this project as many times as you need for different assignments.
-
-Recommended practices
----
-
-Students who know C++ are encouraged to use it, however, C++ is not a requirement for the course.
-The sample code provided is mostly C compatible for the benefit of students who haven't had much C++ exposure yet.
-
-When we get to the more mathy parts of the course, if you have a good handle on C++, consider using
-[Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) for your Linear Algebra needs.
-
-Extra goodies:
----
-
-Although this template has everything you need to succeed in the course, in your own personal projects
-it's likely you'll want to go even further.  Consider adding the following libraries for your arsenal:
-
-* [SDL2_image](https://www.libsdl.org/projects/SDL_image/) for easy image loading from a variety of formats
-* [SDL2_net](https://www.libsdl.org/projects/SDL_net/) for a basic cross-platform networking library
-* [SDL2_mixer](https://www.libsdl.org/projects/SDL_mixer/) for sound rendering
-* [SDL2_rtf](https://www.libsdl.org/projects/SDL_rtf/) for basic document handling (RTF)
-
-Bugs:
----
-
-If you find any problems with the template, please let me know by either creating an Issue on the project page or sending
-me an email.
+The user will be asked for the centre coordinates, a radius, and a colour for the circle.

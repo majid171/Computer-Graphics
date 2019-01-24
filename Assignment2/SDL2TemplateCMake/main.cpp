@@ -13,8 +13,10 @@
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 
-void update(SDL_Texture*, SDL_Surface*, SDL_Renderer*); // Updates the screen with current drawing
-void drawCircle(uint32_t (*pixels)[SCREEN_WIDTH], int xc, int yc, int R, int colour);
+// Functions I created to assist me
+void update(SDL_Texture*, SDL_Surface*, SDL_Renderer*);
+void drawCircle(uint32_t (*pixels)[SCREEN_WIDTH], int, int, int, int, int, int);
+void erase(uint32_t (*pixels)[SCREEN_WIDTH], SDL_Texture*, SDL_Surface*, SDL_Renderer*);
 
 //The example code given is C code, but feel free to use C++ at any time in your work.
 
@@ -198,7 +200,7 @@ int main(int argc, char* args[]) {
 			std::cout << "Enter circle (x y R colour)";
 			std::cin >> xc >> yc >> R;
 
-			drawCircle(pixels, xc, yc, R, 0x000000FF);
+			drawCircle(pixels, xc, yc, R, 0, 0, 0x000000FF);
 			update(texture, canvas, renderer);
 
 			int choice;
@@ -208,13 +210,14 @@ int main(int argc, char* args[]) {
 			if(choice == 1){
 				std::cout << "Enter new coordinates (x y): ";
 				std::cin >> xc >> yc;
-				drawCircle(pixels, xc, yc, R, 0xFF0000FF);
+				drawCircle(pixels, xc, yc, R, 0, 0, 0xFF0000FF);
 				update(texture, canvas, renderer);
 			}
 			else if(choice == 2){
-				std::cout << "Enter a new radius: ";
-				std::cin >> R;
-				drawCircle(pixels, xc, yc, R, 0xFF0000FF);
+				int xOff, yOff;
+				std::cout << "Enter X and Y amounts you want to offset by: ";
+				std::cin >> xOff >> yOff;
+				drawCircle(pixels, xc, yc, R, xOff, yOff, 0xFF0000FF);
 				update(texture, canvas, renderer);
 			}
 			else{
@@ -229,14 +232,7 @@ int main(int argc, char* args[]) {
 		std::cout << "Press any character to erase canvas\n";
 		fflush(stdin);
 		read(0, NULL, 1); 
-
-		for(int i = 0; i < SCREEN_HEIGHT; i++){
-			for(int j = 0; j < SCREEN_WIDTH; j++){
-				pixels[i][j] = 0xFFFFFFFF;
-			}
-		}
-
-		update(texture, canvas, renderer);
+		erase(pixels, texture, canvas, renderer);
 	}
 	
 	//VERY IMPORTANT: free your resources when you are done with them.
@@ -258,16 +254,29 @@ void update(SDL_Texture* texture, SDL_Surface* canvas, SDL_Renderer* renderer){
 	SDL_RenderPresent(renderer);
 }
 
-void drawCircle(uint32_t (*pixels)[SCREEN_WIDTH], int xc, int yc, int R, int colour){
+// Function to draw an ellippse, also draws a circle when the xOff and yOff are zero
+void drawCircle(uint32_t (*pixels)[SCREEN_WIDTH], int xc, int yc, int R, int xOff, int yOff, int colour){
 
-	for(int y = -1*R; y <= R; y++){
-		for(int x = -1*R; x <= R; x++){
-			if(x*x+y*y <= R*R){
-				pixels[yc+y][xc+x] = colour;
-			}
-		}
+	int height = R + yOff;
+	int width = R + xOff;
+	for(int y=-height; y<=height; y++) {
+    	for(int x=-width; x<=width; x++) {
+        	if(x*x*height*height+y*y*width*width <= height*height*width*width){
+            	pixels[yc+y][xc+x] = colour;
+        	}
+    	}
 	}
 }
 
+// Function to erase the canvas for the next iteration
+void erase(uint32_t (*pixels)[SCREEN_WIDTH], SDL_Texture* texture, SDL_Surface* canvas, SDL_Renderer* renderer){	
 
+	for(int i = 0; i < SCREEN_HEIGHT; i++){
+		for(int j = 0; j < SCREEN_WIDTH; j++){
+			pixels[i][j] = 0xFFFFFFFF;
+		}
+	}
+
+	update(texture, canvas, renderer);
+}
 

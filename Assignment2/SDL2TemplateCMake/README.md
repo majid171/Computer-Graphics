@@ -99,8 +99,8 @@ void drawCircle(uint32_t (*pixels)[SCREEN_WIDTH], int xc, int yc, int R, int xOf
 		for(int x=-width; x<=width; x++){
 		    if(x*x*height*height+y*y*width*width <= height*height*width*width){
 			    pixels[yc+y][xc+y] = colour;
-        	}
-    	}
+	        	}
+	    	}
 	}
 }
 

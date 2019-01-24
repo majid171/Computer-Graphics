@@ -1,3 +1,10 @@
+/*
+	Majid Joseph
+	104558520
+	Assignment 2
+	January 25, 2019
+*/
+
 // main.cpp : This file contains the 'main' function. Program execution begins and ends there.
 
 //Standard library includes
@@ -117,24 +124,26 @@ int main(int argc, char* args[]) {
 			int x, y, colour;
 			for(int i = 0; i < numberOfPoints; i++){
 				std::cout << "Point " << i + 1 << " (X Y Colour)" << std::endl;
-				std::cin >> x >> y >> colour;
-				pixels[x][y] = 0x000000FF;
+				scanf("%d %d %x", &x, &y, &colour);
+				pixels[y][x] = colour;
 			}
 
 			update(texture, canvas, renderer);
 		}
 		else if(choice == 3){
-			int x1, y1, x2, y2, colour = 0x000000FF;
+			int x1, y1, x2, y2, colour;
+			int m, c;
 			std::cout << "Enter End Points (X1 Y1 X2 Y2 Colour)";
-			std::cin >> x1 >> y1 >> x2 >> y2;
+			scanf("%d %d %d %d %x", &x1, &y1, &x2, &y2, &colour);
 			
 			// Handles the case when x1 is greater than x2
 			if(x2 < x1){ 
 				std::swap(x2, x1);
 				std::swap(y2, y1);
 			}
-			int m = (y2-y1)/(x2-x1);
-			int c = y2 - m*x2;
+
+			m = (y2-y1)/(x2-x1);
+			c = y2 - m*x2;
 			for(int linex = x1; linex <= x2; linex++){
 				int liney = m*linex + c;
 				pixels[liney][linex] = colour;
@@ -145,7 +154,7 @@ int main(int argc, char* args[]) {
 			int choice;
 			std::cout << "1 : Translate\n2 : Rotate\n";
 			std::cin >> choice;
-
+			
 			if(choice == 1){
 				// Translating the line
 				int xoff, yoff;
@@ -162,7 +171,7 @@ int main(int argc, char* args[]) {
 				c = y2 - m*x2;
 				for(int linex = x1; linex <= x2; linex++){
 					int liney = m*linex + c;
-					pixels[liney][linex] = 0xFF0000FF;
+					pixels[liney][linex] = 0xFF0000FF; 
 				}
 				update(texture, canvas, renderer);
 			}
@@ -170,7 +179,7 @@ int main(int argc, char* args[]) {
 				printf("Enter an angle in degrees: ");
 				int temp123;
 				scanf("%d", &temp123);
-				float angle = temp123 * (M_PI/180);
+				float angle = temp123 * (M_PI/180); // make sure angle is in radians
 			
 				int midX = (SCREEN_WIDTH / 2) - 1;
 				int midY = (SCREEN_HEIGHT / 2) - 1;
@@ -183,9 +192,9 @@ int main(int argc, char* args[]) {
 					xPrime = (cos(angle)*((double) i-midX)) - (sin(angle)*((double) j-midY));
 					yPrime = (sin(angle)*((double) i-midX)) + (cos(angle)*((double) j-midY));
  
-					int iFinal = (int) std::round(xPrime + midX);
-					int jFinal = (int) std::round(yPrime + midY);
-					pixels[jFinal][iFinal] = 0xFF0000FF; 
+					i = (int) std::round(xPrime + midX);
+					j = (int) std::round(yPrime + midY);
+					pixels[j][i] = 0xFF0000FF; 
 				}
 
 				update(texture, canvas, renderer);
@@ -197,9 +206,10 @@ int main(int argc, char* args[]) {
 		}
 		else if(choice == 4){
 			int xc, yc, R, colour;
-			std::cout << "Enter circle (x y R colour)";
-			std::cin >> xc >> yc >> R;
+			std::cout << "Enter circle (X Y R Colour)";
+			scanf("%d %d %d %x", &xc, &yc, &R, &colour);
 
+			// Passing 0,0 to achieve a perfect circle
 			drawCircle(pixels, xc, yc, R, 0, 0, 0x000000FF);
 			update(texture, canvas, renderer);
 
@@ -209,14 +219,14 @@ int main(int argc, char* args[]) {
 
 			if(choice == 1){
 				std::cout << "Enter new coordinates (x y): ";
-				std::cin >> xc >> yc;
+				scanf("%d %d", &xc, &yc);
 				drawCircle(pixels, xc, yc, R, 0, 0, 0xFF0000FF);
 				update(texture, canvas, renderer);
 			}
 			else if(choice == 2){
 				int xOff, yOff;
 				std::cout << "Enter X and Y amounts you want to offset by: ";
-				std::cin >> xOff >> yOff;
+				scanf("%d %d", &xOff, &yOff);
 				drawCircle(pixels, xc, yc, R, xOff, yOff, 0xFF0000FF);
 				update(texture, canvas, renderer);
 			}
@@ -257,12 +267,14 @@ void update(SDL_Texture* texture, SDL_Surface* canvas, SDL_Renderer* renderer){
 // Function to draw an ellippse, also draws a circle when the xOff and yOff are zero
 void drawCircle(uint32_t (*pixels)[SCREEN_WIDTH], int xc, int yc, int R, int xOff, int yOff, int colour){
 
-	int height = R + yOff;
+	// Modification of the circle drawing algorithm
+	int height = R + yOff; 
 	int width = R + xOff;
-	for(int y=-height; y<=height; y++) {
-    	for(int x=-width; x<=width; x++) {
+
+	for(int y=-height; y<=height; y++){
+    	for(int x=-width; x<=width; x++){
         	if(x*x*height*height+y*y*width*width <= height*height*width*width){
-            	pixels[yc+y][xc+x] = colour;
+            	pixels[yc+y][yc+y] = colour;
         	}
     	}
 	}
@@ -271,6 +283,7 @@ void drawCircle(uint32_t (*pixels)[SCREEN_WIDTH], int xc, int yc, int R, int xOf
 // Function to erase the canvas for the next iteration
 void erase(uint32_t (*pixels)[SCREEN_WIDTH], SDL_Texture* texture, SDL_Surface* canvas, SDL_Renderer* renderer){	
 
+	// Paint every pixel on the screen white
 	for(int i = 0; i < SCREEN_HEIGHT; i++){
 		for(int j = 0; j < SCREEN_WIDTH; j++){
 			pixels[i][j] = 0xFFFFFFFF;
@@ -279,4 +292,3 @@ void erase(uint32_t (*pixels)[SCREEN_WIDTH], SDL_Texture* texture, SDL_Surface* 
 
 	update(texture, canvas, renderer);
 }
-

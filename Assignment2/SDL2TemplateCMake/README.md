@@ -35,7 +35,15 @@ void erase(uint32_t (*pixels)[SCREEN_WIDTH], SDL_Texture* texture, SDL_Surface* 
 ```
 
 ## Explaining the Code
-I will explain the code for each action you can perform with the program. **Please note when you are asked to enter a colour, you must enter it in hexadecimal format. Example: 0x000000FF**
+I will explain the code for each action you can perform with the program.
+
+**Quick Notes**
+
+ - When entering in a colour, make sure to enter the hex code for it. Example: 0x000000FF
+ - When some operation is done to a line or circle, it is hard coded to paint it red to show the difference.
+ - I noticed that the canvas does not fill up the entire window. So if you have a point at (1, 1) it will look a bit off. Please take that into a factor.
+ 
+ <br/>
 
 **Draw Points**
 
@@ -97,16 +105,43 @@ void drawCircle(uint32_t (*pixels)[SCREEN_WIDTH], int xc, int yc, int R, int xOf
 	int width = R + xOff;
 
 	for(int y=-height; y<=height; y++){
-	   for(int x=-width; x<=width; x++){
-	      if(x*x*height*height+y*y*width*width <= height*height*width*width){
-		     pixels[yc+y][xc+x] = colour;
-	      }
-	   }
+    	for(int x=-width; x<=width; x++){
+        	if(x*x*height*height+y*y*width*width <= height*height*width*width){
+        		// So it doesnt go off screen and draw pixels in the incorrect positions
+            	if(yc + y <= SCREEN_HEIGHT && yc + y >= 0 && xc+x <= SCREEN_WIDTH && xc+x >= 0){
+            		pixels[yc+y][xc+x] = colour;
+            	}
+        	}
+    	}
 	}
 }
 
 ```
 <br/>
+
+# Sample Interaction
+
+```
+1 : Exit program
+2 : Draw (1-5) Points
+3 : Draw a Line
+4 : Draw a Circle
+
+>> 4
+Enter circle (X Y R Colour): 100 100 50 0x000000FF
+1 : Translate
+2 : Scale
+>> 2
+Enter X and Y amounts you want to offset by: 100 0
+Press any character to erase canvas
+>>
+1 : Exit program
+2 : Draw (1-5) Points
+3 : Draw a Line
+4 : Draw a Circle
+
+>> 1
+```
 
 # Conclusion
 If you have any further questions please feel free to contact me.

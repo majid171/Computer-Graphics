@@ -224,7 +224,7 @@ int main(int argc, char* args[]) {
 
 			if(choice == 1){
 				int xc_, yc_;
-				std::cout << "Enter translation coordinates (x y): ";
+				std::cout << "Translate it by (x y): ";
 				scanf("%d %d", &xc_, &yc_);
 				drawCircle(pixels, xc+xc_, yc+yc_, R, 0, 0, 0xFF0000FF); // Add the coordinates
 				update(texture, canvas, renderer);
@@ -280,7 +280,10 @@ void drawCircle(uint32_t (*pixels)[SCREEN_WIDTH], int xc, int yc, int R, int xOf
 	for(int y=-height; y<=height; y++){
     	for(int x=-width; x<=width; x++){
         	if(x*x*height*height+y*y*width*width <= height*height*width*width){
-            	pixels[yc+y][xc+x] = colour;
+        		// So it doesnt go off screen and draw pixels in the incorrect positions
+            	if(yc + y <= SCREEN_HEIGHT && yc + y >= 0 && xc+x <= SCREEN_WIDTH && xc+x >= 0){
+            		pixels[yc+y][xc+x] = colour;
+            	}
         	}
     	}
 	}

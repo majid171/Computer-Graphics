@@ -65,6 +65,7 @@ for(int linex = x1; linex <= x2; linex++){
  After the line is drawn, the user will be asked whether they want to rotate the line about the origin, or to translate it. The translating part is easy, you simply add the  x offset and the y offset to each end point. The rotation is a little more difficult. Since our line is not necessarily at the origin, we must translate it there first, then rotate it, and then finally translate it back to its original position. The code can be found below.
 
 ```c++
+// Expansion of the algorithm from the slides
 int midX = (SCREEN_WIDTH / 2) - 1;
 int midY = (SCREEN_HEIGHT / 2) - 1;
 for(int i = x1; i <= x2; i++){
@@ -76,9 +77,9 @@ for(int i = x1; i <= x2; i++){
 	xPrime = (cos(angle)*((double) i-midX)) - (sin(angle)*((double) j-midY));
 	yPrime = (sin(angle)*((double) i-midX)) + (cos(angle)*((double) j-midY));
  
-	i = (int) std::round(xPrime + midX);
-	j = (int) std::round(yPrime + midY);
-	pixels[j][i] = 0xFF0000FF; 
+	int iFinal = (int) std::round(xPrime + midX);
+	int jFinal = (int) std::round(yPrime + midY);
+	pixels[jFinal][iFinal] = 0xFF0000FF; 
 }
 ```
 <br/>
@@ -98,7 +99,7 @@ void drawCircle(uint32_t (*pixels)[SCREEN_WIDTH], int xc, int yc, int R, int xOf
 	for(int y=-height; y<=height; y++){
 	   for(int x=-width; x<=width; x++){
 	      if(x*x*height*height+y*y*width*width <= height*height*width*width){
-		     pixels[yc+y][xc+y] = colour;
+		     pixels[yc+y][xc+x] = colour;
 	      }
 	   }
 	}

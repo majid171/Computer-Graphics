@@ -107,7 +107,7 @@ int main(int argc, char* args[]) {
 	char waitForUser;
 	while(1){
 		std::cout << "1 : Exit program\n2 : Draw (1-5) Points\n3 : Draw a Line\n4 : Draw a Circle\n" << std::endl;
-		std::cin >> choice;
+		scanf("%d", &choice);
 		
 		if(choice == 1){
 			break;
@@ -133,7 +133,7 @@ int main(int argc, char* args[]) {
 		else if(choice == 3){
 			int x1, y1, x2, y2, colour;
 			int m, c;
-			std::cout << "Enter End Points (X1 Y1 X2 Y2 Colour)";
+			std::cout << "Enter End Points (X1 Y1 X2 Y2 Colour): ";
 			scanf("%d %d %d %d %x", &x1, &y1, &x2, &y2, &colour);
 			
 			// Handles the case when x1 is greater than x2
@@ -142,6 +142,7 @@ int main(int argc, char* args[]) {
 				std::swap(y2, y1);
 			}
 
+			// Iterate through [x1, x2] and calculate the corresponding y
 			m = (y2-y1)/(x2-x1);
 			c = y2 - m*x2;
 			for(int linex = x1; linex <= x2; linex++){
@@ -158,8 +159,11 @@ int main(int argc, char* args[]) {
 			if(choice == 1){
 				// Translating the line
 				int xoff, yoff;
-				std::cout << "Translate it by (x y) ";
+				std::cout << "Translate it by (x y): ";
 				std::cin >> xoff >> yoff;
+
+				// Add the offsets to the end points
+				// Draw the line the same way as before
 				x1 += xoff; x2 += xoff;
 				y1 += yoff; y2 += yoff;
 				if(x2 < x1){ 
@@ -180,7 +184,8 @@ int main(int argc, char* args[]) {
 				int temp123;
 				scanf("%d", &temp123);
 				float angle = temp123 * (M_PI/180); // make sure angle is in radians
-			
+				
+				// Expansion of the algorithm from the slides
 				int midX = (SCREEN_WIDTH / 2) - 1;
 				int midY = (SCREEN_HEIGHT / 2) - 1;
 				for(int i = x1; i <= x2; i++){
@@ -192,9 +197,9 @@ int main(int argc, char* args[]) {
 					xPrime = (cos(angle)*((double) i-midX)) - (sin(angle)*((double) j-midY));
 					yPrime = (sin(angle)*((double) i-midX)) + (cos(angle)*((double) j-midY));
  
-					i = (int) std::round(xPrime + midX);
-					j = (int) std::round(yPrime + midY);
-					pixels[j][i] = 0xFF0000FF; 
+					int iFinal = (int) std::round(xPrime + midX);
+					int jFinal = (int) std::round(yPrime + midY);
+					pixels[jFinal][iFinal] = 0xFF0000FF; 
 				}
 
 				update(texture, canvas, renderer);
@@ -206,11 +211,11 @@ int main(int argc, char* args[]) {
 		}
 		else if(choice == 4){
 			int xc, yc, R, colour;
-			std::cout << "Enter circle (X Y R Colour)";
+			std::cout << "Enter circle (X Y R Colour): ";
 			scanf("%d %d %d %x", &xc, &yc, &R, &colour);
 
 			// Passing 0,0 to achieve a perfect circle
-			drawCircle(pixels, xc, yc, R, 0, 0, 0x000000FF);
+			drawCircle(pixels, xc, yc, R, 0, 0, colour);
 			update(texture, canvas, renderer);
 
 			int choice;
@@ -218,16 +223,17 @@ int main(int argc, char* args[]) {
 			std::cin >> choice;
 
 			if(choice == 1){
-				std::cout << "Enter new coordinates (x y): ";
-				scanf("%d %d", &xc, &yc);
-				drawCircle(pixels, xc, yc, R, 0, 0, 0xFF0000FF);
+				int xc_, yc_;
+				std::cout << "Enter translation coordinates (x y): ";
+				scanf("%d %d", &xc_, &yc_);
+				drawCircle(pixels, xc+xc_, yc+yc_, R, 0, 0, 0xFF0000FF); // Add the coordinates
 				update(texture, canvas, renderer);
 			}
 			else if(choice == 2){
 				int xOff, yOff;
 				std::cout << "Enter X and Y amounts you want to offset by: ";
 				scanf("%d %d", &xOff, &yOff);
-				drawCircle(pixels, xc, yc, R, xOff, yOff, 0xFF0000FF);
+				drawCircle(pixels, xc, yc, R, xOff, yOff, 0xFF0000FF); // Instead of 0 0, provide the actual offsets
 				update(texture, canvas, renderer);
 			}
 			else{
@@ -274,7 +280,7 @@ void drawCircle(uint32_t (*pixels)[SCREEN_WIDTH], int xc, int yc, int R, int xOf
 	for(int y=-height; y<=height; y++){
     	for(int x=-width; x<=width; x++){
         	if(x*x*height*height+y*y*width*width <= height*height*width*width){
-            	pixels[yc+y][xc+y] = colour;
+            	pixels[yc+y][xc+x] = colour;
         	}
     	}
 	}

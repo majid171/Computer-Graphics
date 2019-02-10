@@ -1,133 +1,421 @@
-UWindsor COMP-3520 SDL2 Project Template (CMake version)
-===
+﻿# Assignment 3 - February 15, 2019
 
-Floordemo branch
----
+To download the solution, please clone my repository and ensure that you have the correct libraries required. Find those libraries and instructions [here](https://github.com/InBetweenNames/SDL2TemplateCMake).
+# Disclaimer
+This program works best for polygons with friendly slopes. Will still work for other polygons, however you might run into trouble if the slopes are very *unfriendly* and you try to use the filling algorithms.
+# My Approach
 
-This branch contains source code for some 2.5D rendering functions written
-for software rendering.  The code needs a bit of cleaning up, but otherwise
-should work fine.  Pull requests are welcome to improve the code.
+- Made a struct called Resources to house all the SDL2 stuff
+ - Made a struct called Point that houses an X and Y
+ - Chose to represent a polygon as a vector of Points
+ - Implemented Bresenham's algorithm to take care of drawing the lines for the polygon. 
+	 - Crucial for the filling algorithms
 
-The code is written in mostly C such that students without a C++ background
-can more easily understand it.  There are some parts that need to be overhauled,
-like the conversion from floating point coordinates to integer coordinates.
-However, the basic ideas should be evident.  In class, we'll discuss how
-this would have been implemented using fixed-point arithmetic.
+# Interacting with the program
 
-A live demo compiled using Emscripten and WebAssembly is available [here](https://inbetweennames.github.io/SDL2TemplateCMake/)
+Once you successfully build and run the program...
 
-Controls:
----
+ - You will be greeted with an interactive program
+	 - 1: Exit
+	 - 2: Clipping
+	 - 3: Filling
+- Clipping
+	- Will be asked to input a polygon
+	- Specify about which point to draw it at
+	- Choose a clipping algorithm
+	- Do the first three steps twice total
+- Filling
+	- Input a polygon, automatically clipped for you
+	- Polygon will be drawn
+	- Will be asked to input a point inside the polygon for the floodfill algorithm 
+	- floodFill will successfully fill the polygon
+	- Screen will be erased
+	- Polygon redrawn
+	- scanLine will refill the polygon
 
-Mouse - look left/right
-W, A, S, D - move forwards, backwards, upwards, downwards
-T, G -- raise and lower height
-Y, H -- adjust focal distance (distance to screen plane)
+## Helper Functions
+The functions that cleaned up the program, **not necessary** for any of the algorithms required for the assignment. When looking at the code, they will be near the bottom.
+```c++
+void update(Resources); // Updates canvas
+void erase(uint32_t (*)[SCREEN_WIDTH], Resources); // Erases the canvas
+int mainMenu(); // Displays interactive menu and returns user choice
+void end(Resources res); // Cleans up at the end
+int clipChoose(); // Menu for clipping options and returns choice
+vector<Point> inputPoly(); // Inputs a polygon from user
+void drawLine(uint32_t (*)[SCREEN_WIDTH], Point, Point); // Draws a line between two points
+void drawPoly(uint32_t (*)[SCREEN_WIDTH], Resources, vector<Point>); // Draws the polygon
+void translate(vector<Point> &, Point); // Translates a polygon about a point
+```
+Feel free to look at the functions more in depth in the main.cpp file.
 
-Template
----
+# Flood Fill Algorithm
 
-This template is intended for students in the COMP-3520 Introduction to Computer Graphics course
-at the University of Windsor, however it should serve as a useful template for anyone interested in
-getting started with the [SDL2](http://libsdl.org/) library quickly on non-Windows platforms.
-In contrast to the [Visual Studio template](https://github.com/InBetweenNames/SDL2Template), this version
-uses dynamic linking by default and uses your installed system libraries.
+When implementing this algorithm, I had problems with eight nearest neighbours due to not perfect lines being drawn. Algorithm would break out of polygon when one of the corner pixels was not filled in due to the slope of the line once it is outside of the polygon, it would fill the entire canvas causing it to segment. Therefor four nearest neighbours is sufficient.
+```c++
+void floodFill(uint32_t (*pixels)[SCREEN_WIDTH], int x, int y, int newColour){
 
-The following dependencies are required:
-* [CMake](https://cmake.org/)
-* [SDL2](http://libsdl.org/) 
-* [SDL2_ttf](https://www.libsdl.org/projects/SDL_ttf/) library for easy text rendering
-* [freetype2](https://www.freetype.org/) which `SDL2_ttf` uses for the actual work
+	// Fail safe
+	if(x <= 0 || x >= SCREEN_WIDTH || y <= 0 || y >= SCREEN_HEIGHT)
+		return;
 
-It's very easy to get started with SDL2 on most linux distributions.  Just ensure you have the above packages installed along with their header files (usually requires a `-dev` package)
+	if(pixels[y][x] != newColour){
+		pixels[y][x] = newColour;
+		
+		floodFill(pixels, x + 1, y, newColour);
+		floodFill(pixels, x, y + 1, newColour);
+		floodFill(pixels, x - 1, y, newColour);
+		floodFill(pixels, x, y - 1, newColour);
+	}
+}
+```
 
-On Debian based systems, the packages will probably be called `libsdl2-dev` and `libsdl2-ttf-dev`.
-On Arch Linux, look for the packages `sdl2` and `sdl2_ttf`.
+# Scan Line Fill Algorithm
+I implemented two helper functions so I can retrieve the minimum and maximum Y value of the polygon.
 
-Mac users should be able to use Homebrew or a similar package manager to install the needed dependencies.
-If you need help, just send me an email.
+```c++
+// Returns minimum Y value of polygon
+int getMinY(vector<Point>const& poly){
+    int min = poly[0].y;
 
-Setup
----
+    for(Point p : poly){
+        if(p.y < min){
+            min = p.y;
+        }
+    }
 
-Once you've installed these packages, you'll be all set to start your first assignment.
-Clone this repository somewhere using Git (in a shell):
+    return min;
+}
 
-~~~
-git clone https://github.com/InBetweenNames/SDL2TemplateCMake.git
-cd SDL2TemplateCMake
-~~~
+// Returns maximum Y value of polygon
+int getMaxY(vector<Point>const& poly){
+    int max = poly[0].y;
 
-Next, enter the build directory:
+    for(Point p: poly){
+        if(p.y > max){
+            max = p.y;
+        }
+    }
 
-~~~
-cd build
-~~~
+    return max;
+}
+```
+Next I implemented a function to determine whether a point intersects one of the edges of the Polygon.
 
-Run CMake:
+```c++
+bool intersects(Point p, vector<Point> poly){
 
-~~~
-cmake ..
-~~~
+    for(int i = 0; i < poly.size(); i++){
+        int k = (i + 1) % poly.size();
 
-If this runs without errors, you're ready to build:
+        // Two consecutive points (a line)
+        Point p1 = poly[i];
+        Point p2 = poly[k];
+        float x1, x2, y1, y2;
+        x1 = p1.x; y1 = p1.y; x2 = p2.x; y2 = p2.y;
+        float m, c;
 
-~~~
-cmake --build .
-~~~
+        if(x1 == x2){ // if vertical line
+            if(p.x == x1) return true;
+        }
+        else{
+            m = (y2-y1)/(x2-x1);
+            c = y2 - m*x2;
+            if(abs((float)p.y - (float)(m*p.x + c)) < 0.5) { // Under a certain tollerence
+                return true;
+            }
+        }
+    }
+    return false;
+}
+```
 
-Now, run the demo:
+Finally...
+```c++
+void scanLine(uint32_t (*pixels)[SCREEN_WIDTH], int ymin, int ymax, Resources res, vector<Point> poly){
 
-~~~
-./main
-~~~
+    for(int y = ymin + 1; y < ymax - 1; y++){
+        int count = 0;
+        for(int x = 0; x < SCREEN_WIDTH; x++){
+            Point p(x, y);
 
-Note that `iosevka-regular.ttf` must be in the working directory of `main` for it to work.
-In practice, this means you need to be in the `build` directory when running `main`.
-I would welcome a pull request that removes this restriction.
+            if(intersects(p, poly)){
+                count++;
+            }
 
-Setup for Emscripten
----
+            if(count == 1){ // Inside
+                pixels[y][x] = BLACK;
+            }
+            else if(count == 0 || count == 2){ // Outside
+                pixels[y][x] = WHITE;
+            }   
+        }
+    }
 
-This template now supports building using [Emscripten](https://kripken.github.io/emscripten-site/) for compiling your SDL2-based
-C or C++ code directly to your web browser using WebAssembly.  To use it, ensure you have the [Emscripten SDK](https://github.com/emscripten-core/emsdk)
-installed and in your PATH (use `emsdk install` and `emsdk activate`, following all instructions), and then:
+    update(res);
+}
+```
 
-~~~
-cd build-wasm
-./build_with_emscripten.sh
-~~~
+# Sutherland-Hodgman Algorithm
 
-This will configure, compile, link, and run your project directly in your web browser.
+I implemented a helper function to call the algorithm for each edge of the clipper window.
 
-The demo
----
+```c++
+void suthHodgClip(vector<Point> &poly, vector<Point> clipper){
 
-The demo code will change periodically to help you with your newest assignments.
-You can clone this project as many times as you need for different assignments.
+    //i and k are two consecutive indexes 
+    for (int i = 0; i < clipper.size(); i++){ 
+        int k = (i + 1) % clipper.size(); 
+  
+        clip(poly, clipper[i], clipper[k]); 
+    } 
+} 
+```
+**Clipper is defined in main as a vector of points. The points represent the canvas. You can change clipper to be a smaller box to see the effects.**
 
-Recommended practices
----
+I also made two functions to determine the X and Y intersection of a point between two lines.
+```c++
+// Implementation of Sutherland-Hodgman
+// Returns the x-value of point of interection of two lines
+int x_intersect(Point p1, Point p2, Point p3, Point p4){ 
+    int num = (p1.x*p2.y - p1.y*p2.x) * (p3.x-p4.x) - 
+              (p1.x-p2.x) * (p3.x*p4.y - p3.y*p4.x); 
+    int den = (p1.x-p2.x) * (p3.y-p4.y) - (p1.y-p2.y) * (p3.x-p4.x); 
+    return num/den; 
+} 
 
-Students who know C++ are encouraged to use it, however, C++ is not a requirement for the course.
-The sample code provided is mostly C compatible for the benefit of students who haven't had much C++ exposure yet.
+// Implementation of Sutherland-Hodgman
+// Returns y-value of point of intersectipn of two lines 
+int y_intersect(Point p1, Point p2, Point p3, Point p4){ 
+    int num = (p1.x*p2.y - p1.y*p2.x) * (p3.y-p4.y) - 
+              (p1.y-p2.y) * (p3.x*p4.y - p3.y*p4.x); 
+    int den = (p1.x-p2.x) * (p3.y-p4.y) - (p1.y-p2.y) * (p3.x-p4.x); 
+    return num/den; 
+}
+```
 
-When we get to the more mathy parts of the course, if you have a good handle on C++, consider using
-[Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page) for your Linear Algebra needs.
+The actual clipping part of it.
+```c++
+void clip(vector<Point> &poly, Point p1, Point p2){ 
+    
+  	vector<Point> newPoly;
+    
+    int x1, x2, y1, y2;
+    x1 = p1.x; y1 = p1.y; x2 = p2.x; y2 = p2.y;
 
-Extra goodies:
----
+    // (ix,iy),(kx,ky) are the values of the points 
+    for (int i = 0; i < poly.size(); i++){ 
+        int k = (i+1) % poly.size(); 
+  		
+        // Two consecutive points
+        int ix = poly[i].x, iy = poly[i].y;
+  		int kx = poly[k].x, ky = poly[k].y;
 
-Although this template has everything you need to succeed in the course, in your own personal projects
-it's likely you'll want to go even further.  Consider adding the following libraries for your arsenal:
+        // Calculating position of first point 
+        // w.r.t. clipper line 
+        int i_pos = (x2-x1) * (iy-y1) - (y2-y1) * (ix-x1); 
+  
+        // Calculating position of second point 
+        // w.r.t. clipper line 
+        int k_pos = (x2-x1) * (ky-y1) - (y2-y1) * (kx-x1); 
+  
+        // Case 1 : When both points are inside 
+        if (i_pos < 0  && k_pos < 0){ 
+            newPoly.push_back(Point(kx, ky));
+        } 
+  
+        // Case 2: When only first point is outside 
+        else if (i_pos >= 0  && k_pos < 0){ 
+            Point temp;
+            temp.x = x_intersect(Point(x1,y1), Point(x2,y2), Point(ix,iy), Point(kx,ky));                   
+            temp.y = y_intersect(Point(x1,y1), Point(x2,y2), Point(ix,iy), Point(kx,ky));
+  			newPoly.push_back(temp);
+            newPoly.push_back(Point(kx, ky));
+        } 
+  
+        // Case 3: When only second point is outside 
+        else if (i_pos < 0  && k_pos >= 0){
+            Point temp;
+            temp.x = x_intersect(Point(x1,y1), Point(x2,y2), Point(ix,iy), Point(kx,ky));
+            temp.y = y_intersect(Point(x1,y1), Point(x2,y2), Point(ix,iy), Point(kx,ky));
+            newPoly.push_back(temp);
+        } 
+  
+        // Case 4: When both points are outside, do nothing
+    } 
 
-* [SDL2_image](https://www.libsdl.org/projects/SDL_image/) for easy image loading from a variety of formats
-* [SDL2_net](https://www.libsdl.org/projects/SDL_net/) for a basic cross-platform networking library
-* [SDL2_mixer](https://www.libsdl.org/projects/SDL_mixer/) for sound rendering
-* [SDL2_rtf](https://www.libsdl.org/projects/SDL_rtf/) for basic document handling (RTF)
+    // The new polygon after being clipped
+  	poly = newPoly;
+}
+```
 
-Bugs:
----
+# Liang-Barsky Algorithm
+Created two helper functions to return the minimum and maximum elements of an array.
 
-If you find any problems with the template, please let me know by either creating an Issue on the project page or sending
-me an email.
+```c++
+// Returns max of an array
+float maxi(float arr[], int n) {
+    float m = 0;
+    for (int i = 0; i < n; ++i){
+        if (m < arr[i]){
+            m = arr[i];
+        }
+    }
+
+    return m;
+}
+
+// Returns min of an array
+float mini(float arr[], int n){
+    float m = 1;
+    for(int i = 0; i < n; ++i){
+        if (m > arr[i]){
+            m = arr[i];
+        }
+    }
+
+    return m;
+}
+```
+
+Helper function to call the algorithm for each edge of the polygon.
+```c++
+void liangBarskyHelper(vector<Point> poly, uint32_t (*pixels)[SCREEN_WIDTH], Resources res){
+
+    for(int i = 0; i < poly.size(); i++){
+        int k = (i + 1) % poly.size();
+        
+        liangBarsky(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, poly[i], poly[k], pixels);
+    }
+
+    update(res);
+} 
+```
+To change the clipping window, change the first 4 arguements to a smaller box. 
+Note:
+ ```liangBarsky(minX, minY, maxX, maxY, poly[i], poly[k], pixels);```
+
+Then finally the algorithm...
+```c++
+void liangBarsky(float xmin, float ymin, float xmax, float ymax, Point pi, Point pf, uint32_t (*pixels)[SCREEN_WIDTH]){
+  
+    float x1, y1, x2, y2;
+    x1 = pi.x; y1 = pi.y; x2 = pf.x; y2 = pf.y;
+
+    //defining variables
+    float p1 = -(x2 - x1);
+    float p2 = -p1;
+    float p3 = -(y2 - y1);
+    float p4 = -p3;
+
+    float q1 = x1 - xmin;
+    float q2 = xmax - x1;
+    float q3 = y1 - ymin;
+    float q4 = ymax - y1;
+
+    float posarr[5], negarr[5];
+    int posind = 1, negind = 1;
+    posarr[0] = 1;
+    negarr[0] = 0;
+
+    if ((p1 == 0 && q1 < 0) || (p3 == 0 && q3 < 0)) {
+        //Line is parallel to clipping window!
+        return;
+    }
+    if (p1 != 0) {
+        float r1 = q1 / p1;
+        float r2 = q2 / p2;
+        
+        if (p1 < 0) {
+            negarr[negind++] = r1; // for negative p1, add it to negative array
+            posarr[posind++] = r2; // and add p2 to positive array
+        }else{
+            negarr[negind++] = r2;
+            posarr[posind++] = r1;
+        }
+    }
+
+    if (p3 != 0) {
+        float r3 = q3 / p3;
+        float r4 = q4 / p4;
+        
+        if (p3 < 0){
+            negarr[negind++] = r3;
+            posarr[posind++] = r4;
+        }else{
+            negarr[negind++] = r4;
+            posarr[posind++] = r3;
+        }
+    }
+
+    float xn1, yn1, xn2, yn2;
+    float rn1, rn2;
+    rn1 = maxi(negarr, negind); // maximum of negative array
+    rn2 = mini(posarr, posind); // minimum of positive array
+
+    if(rn1 > rn2){ // reject
+        return;
+    }
+
+    // Computing the new points
+    xn1 = x1 + p2 * rn1;
+    yn1 = y1 + p4 * rn1; 
+    xn2 = x1 + p2 * rn2;
+    yn2 = y1 + p4 * rn2;
+
+    // Directly drawing the line made by the 2 (new) points
+    drawLine(pixels, Point(xn1, yn1), Point(xn2, yn2));
+}
+```
+As you can see, each edge that is passed in gets drawn inside the function. Therefor there is no need to call ```drawPoly(...)``` after its done.
+
+# Sample Run
+Sample run showing the clipping option.
+```
+1: Exit Program
+2: Input Polygon to Clip
+3: Input Polygon to Fill
+2
+Input number of vertices: 4
+Input points in clockwise order!
+Point 1: 100 100
+Point 2: 200 100
+Point 3: 200 200
+Point 4: 100 200
+Enter starting point 1: -100 -100
+1: To clip by Sutherland-Hodgman
+2: To clip by Liang-Barsky
+1
+Enter starting point 2: 0 0
+1: To clip by Sutherland-Hodgman
+2: To clip by Liang-Barsky
+2
+Press anything to continue
+1: Exit Program
+2: Input Polygon to Clip
+3: Input Polygon to Fill
+1
+```
+
+Sample run showing the filling option.
+```
+1: Exit Program
+2: Input Polygon to Clip
+3: Input Polygon to Fill
+3
+Input number of vertices: 3
+Input points in clockwise order!
+Point 1: 100 150
+Point 2: 200 250
+Point 3: 300 200
+Enter in point inside polygon: 250 200
+Demonstrating Recursive flood fill!
+Press anything to see scanline algorithm
+Press anything to continue
+1: Exit Program
+2: Input Polygon to Clip
+3: Input Polygon to Fill
+1
+```
+
+# Conclusion
+If you have any further questions please feel free to contact me.

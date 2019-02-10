@@ -54,14 +54,14 @@ ostream& operator <<(ostream& os, Point const& p){
 }
 
 // Function prototypes
-void update(Resources res);
-void erase(uint32_t (*pixels)[SCREEN_WIDTH], Resources res);
+void update(Resources);
+void erase(uint32_t (*)[SCREEN_WIDTH], Resources);
 int mainMenu();
 void drawLine(uint32_t (*pixels)[SCREEN_WIDTH], Point p1, Point p2);
 void floodFill(uint32_t (*pixels)[SCREEN_WIDTH], int x, int y, int newColour);
 void end(Resources res);
 vector<Point> inputPoly();
-void drawPoly(uint32_t (*pixels)[SCREEN_WIDTH], Resources res, vector<Point> poly);
+void drawPoly(uint32_t (*)[SCREEN_WIDTH], Resources, vector<Point>);
 int y_intersect(Point p1, Point p2, Point p3, Point p4); 
 int x_intersect(Point p1, Point p2, Point p3, Point p4);
 void suthHodgClip(vector<Point> &poly, vector<Point> clipper);
@@ -72,11 +72,9 @@ float maxi(float arr[],int n);
 float mini(float arr[], int n);
 bool intersects(Point p, vector<Point> poly);
 void scanLine(uint32_t (*pixels)[SCREEN_WIDTH], int ymin, int ymax, Resources res, vector<Point> poly);
-void translate(vector<Point> &poly, Point p);
+void translate(vector<Point> &, Point);
 int getMinY(vector<Point>const& poly);
 int getMaxY(vector<Point>const& poly);
-int getMinX(vector<Point>const& poly);
-int getMaxX(vector<Point>const& poly);
 int clipChoose();
 
 int main(){
@@ -210,92 +208,8 @@ int main(){
 	return 0;
 }
 
-// Used to update the canvas
-void update(Resources res){
-	SDL_UpdateTexture(res.texture, NULL, res.canvas->pixels, res.canvas->pitch);
-	SDL_RenderCopy(res.renderer, res.texture, NULL, NULL);
-	SDL_RenderPresent(res.renderer);
-}
-
-// Used to erase the canvas
-void erase(uint32_t (*pixels)[SCREEN_WIDTH], Resources res){
-	
-	// Paint every pixel on the screen white
-	for(int i = 0; i < SCREEN_HEIGHT; i++){
-		for(int j = 0; j < SCREEN_WIDTH; j++){
-			pixels[i][j] = WHITE;
-		}
-	}
-
-	update(res);
-}	
-
-// Decided to seperate the mainMenu options to a function
-int mainMenu(){
-	int choice = 0;
-
-	while(1){
-		cout << "1: Exit Program\n"
-		     << "2: Input Polygon to Clip\n"
-             << "3: Input Polygon to Fill\n";
-
-		cin >> choice;
-		if(choice < 1 || choice > 3){
-			cout << "Invalid Entry!\n";
-		}
-		else break;
-	}
-	
-	return choice;
-}
-
-// Given two points, it draws a connecting line
-// Uses Breesenham's line drawing algorithm
-void drawLine(uint32_t (*pixels)[SCREEN_WIDTH], Point p1, Point p2){
-    
-	int x1, y1, x2, y2;
-	x1 = p1.x; y1 = p1.y; x2 = p2.x; y2 = p2.y;
-	int colour = BLACK;
-
-    // Bresenham's line algorithm
-    bool steep = (fabs(y2 - y1) > fabs(x2 - x1));
-    if(steep){
-        swap(x1, y1);
-        swap(x2, y2);
-    }
-
-    if(x1 > x2){
-        swap(x1, x2);
-        swap(y1, y2);
-    }
-
-    float dx = x2 - x1;
-    float dy = fabs(y2 - y1);
-
-    float error = dx / 2.0f;
-    int ystep = (y1 < y2) ? 1 : -1;
-    int y = (int)y1;
-
-    int maxX = (int)x2;
-
-    for(int x=(int)x1; x<maxX; x++){
-        
-        if(steep){
-            pixels[x][y] = colour;
-        }
-        else{
-            pixels[y][x] = colour;
-        }
-
-        error -= dy;
-        if(error < 0){
-            y += ystep;
-            error += dx;
-        }
-    }
-}
-
 // Given a point inside the polygon, the function will recursively fill it
+// Flood Fill algorithm
 void floodFill(uint32_t (*pixels)[SCREEN_WIDTH], int x, int y, int newColour){
 
 	// Fail safe
@@ -319,62 +233,84 @@ void floodFill(uint32_t (*pixels)[SCREEN_WIDTH], int x, int y, int newColour){
 	}
 }
 
-// Clean up at the end
-void end(Resources res){
-	SDL_DestroyTexture(res.texture);
-	SDL_FreeSurface(res.canvas);
-	SDL_DestroyRenderer(res.renderer);
-	SDL_DestroyWindow(res.window); 
-}
+// Implementation of Scanline algorithm
+// Checks to see if a point intersects any line in the polygon
+bool intersects(Point p, vector<Point> poly){
 
-// Since I need to input multiple polygons
-vector<Point> inputPoly(){
-	
-	int length = 0;
-	int x, y;
-	vector<Point> points;
+    for(int i = 0; i < poly.size(); i++){
+        int k = (i + 1) % poly.size();
 
-	while(1){
-		cout << "Input number of vertices: ";
-		cin >> length;
+        // Two consecutive points (a line)
+        Point p1 = poly[i];
+        Point p2 = poly[k];
+        float x1, x2, y1, y2;
+        x1 = p1.x; y1 = p1.y; x2 = p2.x; y2 = p2.y;
+        float m, c;
 
-		if(length > 2){
-			break;
-		}
-		else{
-			cout << "Invalid Number of Points!\n";
-		}
-	}
-	cout << "Input points in clockwise order!\n";
-	for(int i = 0; i < length; i++){
-		cout << "Point " << i + 1 << ": ";
-		cin >> x >> y;
-		points.push_back(Point(x, y));
-	}
-
-	return points;
-}
-
-// Translates a polygon about a point
-void translate(vector<Point> &poly, Point p){
-
-    for(Point &p_ : poly){
-        p_.x += p.x;
-        p_.y += p.y;
+        if(x1 == x2){ // if vertical line
+            if(p.x == x1) return true;
+        }
+        else{
+            m = (y2-y1)/(x2-x1);
+            c = y2 - m*x2;
+            if(abs((float)p.y - (float)(m*p.x + c)) < 0.5) { // Under a certain tollerence
+                return true;
+            }
+        }
     }
+    return false;
 }
 
-// Draws the polygon given the representation of it
-void drawPoly(uint32_t (*pixels)[SCREEN_WIDTH], Resources res, vector<Point> poly){
+// Implementation of Scanline algorithm
+// Returns minimum Y value of polygon
+int getMinY(vector<Point>const& poly){
+    int min = poly[0].y;
 
-	for(int i = 0; i < poly.size() - 1; i++){
-		Point p1 = poly[i];
-		Point p2 = poly[i + 1];
-		drawLine(pixels, p1, p2);
-	}
-	drawLine(pixels, poly[0], poly[poly.size() - 1]);
+    for(Point p : poly){
+        if(p.y < min){
+            min = p.y;
+        }
+    }
 
-	update(res);
+    return min;
+}
+
+// Implementation of Scanline algorithm
+// Returns maximum Y value of polygon
+int getMaxY(vector<Point>const& poly){
+    int max = poly[0].y;
+
+    for(Point p: poly){
+        if(p.y > max){
+            max = p.y;
+        }
+    }
+
+    return max;
+}
+
+// Implementation of Scanline algorithm
+void scanLine(uint32_t (*pixels)[SCREEN_WIDTH], int ymin, int ymax, Resources res, vector<Point> poly){
+
+    for(int y = ymin + 1; y < ymax - 1; y++){
+        int count = 0;
+        for(int x = 0; x < SCREEN_WIDTH; x++){
+            Point p(x, y);
+
+            if(intersects(p, poly)){
+                count++;
+            }
+
+            if(count == 1){ // Inside
+                pixels[y][x] = BLACK;
+            }
+            else if(count == 0 || count == 2){ // Outside
+                pixels[y][x] = WHITE;
+            }   
+        }
+    }
+
+    update(res);
 }
 
 // Implementation of Sutherland-Hodgman
@@ -396,15 +332,13 @@ int y_intersect(Point p1, Point p2, Point p3, Point p4){
 }
 
 // Implementation of Sutherland-Hodgman
-// Driver function
+// Helper function
 void suthHodgClip(vector<Point> &poly, vector<Point> clipper){
 
     //i and k are two consecutive indexes 
     for (int i = 0; i < clipper.size(); i++){ 
         int k = (i + 1) % clipper.size(); 
   
-        // We pass the current array of vertices, it's size 
-        // and the end points of the selected clipper line 
         clip(poly, clipper[i], clipper[k]); 
     } 
 } 
@@ -418,12 +352,12 @@ void clip(vector<Point> &poly, Point p1, Point p2){
     int x1, x2, y1, y2;
     x1 = p1.x; y1 = p1.y; x2 = p2.x; y2 = p2.y;
 
-    // (ix,iy),(kx,ky) are the co-ordinate values of 
-    // the points 
+    // (ix,iy),(kx,ky) are the values of the points 
     for (int i = 0; i < poly.size(); i++){ 
-        // i and k form a line in polygon 
         int k = (i+1) % poly.size(); 
-  		int ix = poly[i].x, iy = poly[i].y;
+  		
+        // Two consecutive points
+        int ix = poly[i].x, iy = poly[i].y;
   		int kx = poly[k].x, ky = poly[k].y;
 
         // Calculating position of first point 
@@ -463,127 +397,28 @@ void clip(vector<Point> &poly, Point p1, Point p2){
   	poly = newPoly;
 }
 
-// Implementation of Scanline algorithm
-void scanLine(uint32_t (*pixels)[SCREEN_WIDTH], int ymin, int ymax, Resources res, vector<Point> poly){
-
-    for(int y = ymin + 1; y <= ymax - 1; y++){
-        bool isInside = false;
-        int count = 0;
-        for(int x = 0; x < SCREEN_WIDTH - 1; x++){
-            if(count < 2){ // If it has not reached two edges yet
-                Point p(x, y);
-
-                if(intersects(p, poly)){
-                    isInside = !isInside;
-                    count++;
-                }
-
-                if(count == 1){
-                    pixels[y][x] = BLACK;
-                }
-                else if(count == 0 || count == 2){
-                    pixels[y][x] = WHITE;
-                }   
-            }
+// Returns max of an array
+float maxi(float arr[], int n) {
+    float m = 0;
+    for (int i = 0; i < n; ++i){
+        if (m < arr[i]){
+            m = arr[i];
         }
     }
 
-    update(res);
+    return m;
 }
 
-// Implementation of Scanline algorithm
-// Checks to see if a point intersects any line in the polygon
-bool intersects(Point p, vector<Point> poly){
-
-    for(int i = 0; i < poly.size(); i++){
-        int k = (i + 1) % poly.size();
-
-        // Two consecutive points (a line)
-        Point p1 = poly[i];
-        Point p2 = poly[k];
-        float x1, x2, y1, y2;
-        x1 = p1.x; y1 = p1.y; x2 = p2.x; y2 = p2.y;
-        float m, c;
-
-        if(x1 == x2){ // if vertical line
-            if(p.x == x1) return true;
-        }
-        else{
-            m = (y2-y1)/(x2-x1);
-            c = y2 - m*x2;
-            if(abs((float)p.y - (float)(m*p.x + c)) < 0.5) { // Under a certain tollerence
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-// Returns minimum Y value of polygon
-int getMinY(vector<Point>const& poly){
-    int min = poly[0].y;
-
-    for(Point p : poly){
-        if(p.y < min){
-            min = p.y;
+// Returns min of an array
+float mini(float arr[], int n){
+    float m = 1;
+    for(int i = 0; i < n; ++i){
+        if (m > arr[i]){
+            m = arr[i];
         }
     }
 
-    return min;
-}
-
-// Returns maximum Y value of polygon
-int getMaxY(vector<Point>const& poly){
-    int max = poly[0].y;
-
-    for(Point p: poly){
-        if(p.y > max){
-            max = p.y;
-        }
-    }
-
-    return max;
-}
-
-// Returns minimum X value of polygon
-int getMinX(vector<Point>const& poly){
-    int min = poly[0].x;
-
-    for(Point p : poly){
-        if(p.x < min){
-            min = p.x;
-        }
-    }
-
-    return min;
-}
-
-// Returns maximum X value of polygon
-int getMaxX(vector<Point>const& poly){
-    int max = poly[0].x;
-
-    for(Point p: poly){
-        if(p.x > max){
-            max = p.x;
-        }
-    }
-
-    return max;
-}
-
-int clipChoose(){
-
-    int choice;
-
-    while(1){
-        cout << "1: To clip by Sutherland-Hodgman\n"
-             << "2: To clip by Liang-Barsky\n";
-        cin >> choice;
-        if(choice == 1 || choice == 2) break;
-        else cout << "Invalid Entry!\n";
-    }
-
-    return choice;
+    return m;
 }
 
 void liangBarskyHelper(vector<Point> poly, uint32_t (*pixels)[SCREEN_WIDTH], Resources res){
@@ -668,26 +503,169 @@ void liangBarsky(float xmin, float ymin, float xmax, float ymax, Point pi, Point
     drawLine(pixels, Point(xn1, yn1), Point(xn2, yn2));
 }
 
-// Returns max of an array
-float maxi(float arr[],int n) {
-    float m = 0;
-    for (int i = 0; i < n; ++i){
-        if (m < arr[i]){
-            m = arr[i];
+// Used to update the canvas
+void update(Resources res){
+    SDL_UpdateTexture(res.texture, NULL, res.canvas->pixels, res.canvas->pitch);
+    SDL_RenderCopy(res.renderer, res.texture, NULL, NULL);
+    SDL_RenderPresent(res.renderer);
+}
+
+// Used to erase the canvas
+void erase(uint32_t (*pixels)[SCREEN_WIDTH], Resources res){
+    
+    // Paint every pixel on the screen white
+    for(int i = 0; i < SCREEN_HEIGHT; i++){
+        for(int j = 0; j < SCREEN_WIDTH; j++){
+            pixels[i][j] = WHITE;
         }
     }
 
-    return m;
+    update(res);
+}   
+
+
+// Decided to seperate the mainMenu options to a function
+int mainMenu(){
+    int choice = 0;
+
+    while(1){
+        cout << "1: Exit Program\n"
+             << "2: Input Polygon to Clip\n"
+             << "3: Input Polygon to Fill\n";
+
+        cin >> choice;
+        if(choice < 1 || choice > 3){
+            cout << "Invalid Entry!\n";
+        }
+        else break;
+    }
+    
+    return choice;
 }
 
-// Returns min of an array
-float mini(float arr[], int n){
-    float m = 1;
-    for(int i = 0; i < n; ++i){
-        if (m > arr[i]){
-            m = arr[i];
+// Clean up at the end
+void end(Resources res){
+    SDL_DestroyTexture(res.texture);
+    SDL_FreeSurface(res.canvas);
+    SDL_DestroyRenderer(res.renderer);
+    SDL_DestroyWindow(res.window); 
+}
+
+// Since I need to input multiple polygons
+vector<Point> inputPoly(){
+    
+    int length = 0;
+    int x, y;
+    vector<Point> points;
+
+    while(1){
+        cout << "Input number of vertices: ";
+        cin >> length;
+
+        if(length > 2){
+            break;
+        }
+        else{
+            cout << "Invalid Number of Points!\n";
         }
     }
+    cout << "Input points in clockwise order!\n";
+    for(int i = 0; i < length; i++){
+        cout << "Point " << i + 1 << ": ";
+        cin >> x >> y;
+        points.push_back(Point(x, y));
+    }
 
-    return m;
+    return points;
 }
+
+// Clipping menu
+int clipChoose(){
+
+    int choice;
+
+    while(1){
+        cout << "1: To clip by Sutherland-Hodgman\n"
+             << "2: To clip by Liang-Barsky\n";
+        cin >> choice;
+        if(choice == 1 || choice == 2) break;
+        else cout << "Invalid Entry!\n";
+    }
+
+    return choice;
+}
+
+// Draws the polygon given the representation of it
+void drawPoly(uint32_t (*pixels)[SCREEN_WIDTH], Resources res, vector<Point> poly){
+
+    for(int i = 0; i < poly.size() - 1; i++){
+        Point p1 = poly[i];
+        Point p2 = poly[i + 1];
+        drawLine(pixels, p1, p2);
+    }
+    drawLine(pixels, poly[0], poly[poly.size() - 1]);
+
+    update(res);
+}
+
+// Given two points, it draws a connecting line
+// Uses Breesenham's line drawing algorithm
+void drawLine(uint32_t (*pixels)[SCREEN_WIDTH], Point p1, Point p2){
+    
+    int x1, y1, x2, y2;
+    x1 = p1.x; y1 = p1.y; x2 = p2.x; y2 = p2.y;
+    int colour = BLACK;
+
+    // Bresenham's line algorithm
+    bool steep = (fabs(y2 - y1) > fabs(x2 - x1));
+    if(steep){
+        swap(x1, y1);
+        swap(x2, y2);
+    }
+
+    if(x1 > x2){
+        swap(x1, x2);
+        swap(y1, y2);
+    }
+
+    float dx = x2 - x1;
+    float dy = fabs(y2 - y1);
+
+    float error = dx / 2.0f;
+    int ystep = (y1 < y2) ? 1 : -1;
+    int y = (int)y1;
+
+    int maxX = (int)x2;
+
+    for(int x=(int)x1; x<maxX; x++){
+        
+        if(steep){
+            pixels[x][y] = colour;
+        }
+        else{
+            pixels[y][x] = colour;
+        }
+
+        error -= dy;
+        if(error < 0){
+            y += ystep;
+            error += dx;
+        }
+    }
+}
+
+// Translates a polygon about a point
+void translate(vector<Point> &poly, Point p){
+
+    for(Point &p_ : poly){
+        p_.x += p.x;
+        p_.y += p.y;
+    }
+}
+
+
+
+
+
+
+

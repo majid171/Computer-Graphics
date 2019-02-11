@@ -35,24 +35,6 @@ struct Point{
 	Point(){}
 };
 
-void temp(uint32_t (*pixels)[SCREEN_WIDTH]){return;}
-
-ostream& operator <<(ostream& os, vector<Point> const& p){
-  
-	for(Point i : p){
-  		cout << "(" << i.x << ", " << i.y << ")\n";
-  	}
-
-  	return os;
-}
-
-ostream& operator <<(ostream& os, Point const& p){
-  
-    cout << "(" << p.x << ", " << p.y << ")";
-
-    return os;
-}
-
 // Function prototypes
 void update(Resources);
 void erase(uint32_t (*)[SCREEN_WIDTH], Resources);
@@ -81,8 +63,7 @@ int main(){
 
 	// VERY IMPORTANT: Ensure SDL2 is initialized
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS) < 0){
-    	SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
-                 "could not initialize sdl2: %s\n", SDL_GetError());
+    	SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "could not initialize sdl2: %s\n", SDL_GetError());
     	return 1;
   	}
 
@@ -140,7 +121,6 @@ int main(){
 
 	SDL_FillRect(res.canvas, NULL, SDL_MapRGB(res.canvas->format, BLACK, BLACK, BLACK));
 	uint32_t (*pixels)[SCREEN_WIDTH] = (uint32_t(*)[SCREEN_WIDTH]) res.canvas->pixels;
-	temp(pixels);
 
     // This vector represents the canvas
     // Will be used later for clipping
@@ -199,10 +179,9 @@ int main(){
             cout << "Press anything to continue\n";
             read(0, NULL, 1);
         }
-
         erase(pixels, res);
     }
-    //read(0,NULL,1);
+
 	end(res);
 	SDL_Quit();
 	return 0;
@@ -662,10 +641,3 @@ void translate(vector<Point> &poly, Point p){
         p_.y += p.y;
     }
 }
-
-
-
-
-
-
-

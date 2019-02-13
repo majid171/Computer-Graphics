@@ -232,7 +232,7 @@ bool intersects(Point p, vector<Point> poly){
         else{
             m = (y2-y1)/(x2-x1);
             c = y2 - m*x2;
-            if(abs((float)p.y - (float)(m*p.x + c)) < 0.5) { // Under a certain tollerence
+            if(abs((float)p.y - (float)(m*p.x + c)) < 1) { // Under a certain tollerence
                 return true;
             }
         }
@@ -271,25 +271,29 @@ int getMaxY(vector<Point>const& poly){
 // Implementation of Scanline algorithm
 void scanLine(uint32_t (*pixels)[SCREEN_WIDTH], int ymin, int ymax, Resources res, vector<Point> poly){
 
-    for(int y = ymin + 1; y < ymax - 1; y++){
-        int count = 0;
-        for(int x = 0; x < SCREEN_WIDTH; x++){
-            Point p(x, y);
+    for(int y = ymin + 1; y <= ymax; y++){
+        // bool isInside = false;
+        // for(int x = 100; x < 200; x++){
+        //     Point p(x, y);
 
-            if(intersects(p, poly)){
-                count++;
-            }
+        //     if(/*intersects(p, poly)*/pixels[p.y][p.x] == BLACK){
+        //         isInside = !isInside;
+        //         cout << "Intersected ";
+        //     }
 
-            if(count == 1){ // Inside
-                pixels[y][x] = BLACK;
-            }
-            else if(count == 0 || count == 2){ // Outside
-                pixels[y][x] = WHITE;
-            }   
-        }
+        //     if(isInside){ // Inside
+        //         pixels[y][x] = BLACK;
+        //     }
+        //     else{ // Outside
+        //         pixels[y][x] = WHITE;
+        //     }   
+        // }
+        update(res);
+        // cout << "\n";
+        // //sleep(1);
+        pixels[y][150] = BLACK;
     }
 
-    update(res);
 }
 
 // Implementation of Sutherland-Hodgman
@@ -595,7 +599,6 @@ void drawLine(uint32_t (*pixels)[SCREEN_WIDTH], Point p1, Point p2){
     x1 = p1.x; y1 = p1.y; x2 = p2.x; y2 = p2.y;
     int colour = BLACK;
 
-    // Bresenham's line algorithm
     bool steep = (fabs(y2 - y1) > fabs(x2 - x1));
     if(steep){
         swap(x1, y1);

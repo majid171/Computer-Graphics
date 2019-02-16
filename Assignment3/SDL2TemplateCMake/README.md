@@ -1,8 +1,8 @@
-﻿# Assignment 3 - February 15, 2019
+﻿# Assignment 3 - February 18, 2019
 
 To download the solution, please clone my repository and ensure that you have the correct libraries required. Find those libraries and instructions [here](https://github.com/InBetweenNames/SDL2TemplateCMake).
 # Disclaimer
-This program works best for polygons with friendly slopes. Will still work for other polygons, however you might run into trouble if the slopes are very *unfriendly* and you try to use the filling algorithms.
+This program works best for polygons with *friendly* slopes. Will still work for other polygons, however you might run into trouble if the slopes are very *unfriendly* and you try to use the filling algorithms, more notably, the flood fill. An explanation is provided later.
 # My Approach
 
 - Made a struct called Resources to house all the SDL2 stuff
@@ -50,109 +50,55 @@ Feel free to look at the functions more in depth in the main.cpp file.
 
 # Flood Fill Algorithm
 
-When implementing this algorithm, I had problems with eight nearest neighbours due to not perfect lines being drawn. Algorithm would break out of polygon when one of the corner pixels was not filled in due to the slope of the line once it is outside of the polygon, it would fill the entire canvas causing it to segment. Therefor four nearest neighbours is sufficient.
+When implementing this algorithm, I had problems with eight nearest neighbours due to not perfect lines being drawn. Algorithm would break out of polygon when one of the corner pixels was not filled in due to the slope of the line once it is outside of the polygon, it would fill the entire canvas causing it to segment. Therefor four nearest neighbours is sufficient. There are still some cases where choppy lines are drawn due to the slope chosen, causing the algorithm to segment still.
 ```c++
-void floodFill(uint32_t (*pixels)[SCREEN_WIDTH], int x, int y, int newColour){
-
-	// Fail safe
-	if(x <= 0 || x >= SCREEN_WIDTH || y <= 0 || y >= SCREEN_HEIGHT)
-		return;
-
-	if(pixels[y][x] != newColour){
-		pixels[y][x] = newColour;
-		
-		floodFill(pixels, x + 1, y, newColour);
-		floodFill(pixels, x, y + 1, newColour);
-		floodFill(pixels, x - 1, y, newColour);
-		floodFill(pixels, x, y - 1, newColour);
-	}
-}
+//...
+floodFill(pixels, x + 1, y); // Right
+floodFill(pixels, x, y + 1); // Bottom
+floodFill(pixels, x - 1, y); // Left
+floodFill(pixels, x, y - 1); // Top
+//...
 ```
 
 # Scan Line Fill Algorithm
 I implemented two helper functions so I can retrieve the minimum and maximum Y value of the polygon.
 
 ```c++
-// Returns minimum Y value of polygon
-int getMinY(vector<Point>const& poly){
-    int min = poly[0].y;
-
-    for(Point p : poly){
-        if(p.y < min){
-            min = p.y;
-        }
-    }
-
-    return min;
-}
-
-// Returns maximum Y value of polygon
-int getMaxY(vector<Point>const& poly){
-    int max = poly[0].y;
-
-    for(Point p: poly){
-        if(p.y > max){
-            max = p.y;
-        }
-    }
-
-    return max;
-}
-```
-Next I implemented a function to determine whether a point intersects one of the edges of the Polygon.
-
-```c++
-bool intersects(Point p, vector<Point> poly){
-
-    for(int i = 0; i < poly.size(); i++){
-        int k = (i + 1) % poly.size();
-
-        // Two consecutive points (a line)
-        Point p1 = poly[i];
-        Point p2 = poly[k];
-        float x1, x2, y1, y2;
-        x1 = p1.x; y1 = p1.y; x2 = p2.x; y2 = p2.y;
-        float m, c;
-
-        if(x1 == x2){ // if vertical line
-            if(p.x == x1) return true;
-        }
-        else{
-            m = (y2-y1)/(x2-x1);
-            c = y2 - m*x2;
-            if(abs((float)p.y - (float)(m*p.x + c)) < 0.5) { // Under a certain tollerence
-                return true;
-            }
-        }
-    }
-    return false;
-}
+int getMinY(vector<Point>const&);
+int getMaxY(vector<Point>const&);
 ```
 
-Finally...
+ - Loop through each Y value (each Scan Line)
+	 - Find all edges of the polygon such that the current Y value will eventually intersect it
+	 - Find the intersection point (X value) of each edge from the previous step
+	 - Sort intersections by X value
+	 - Remove duplicates to handle the case of intersection at a point
+	 - Fill between the intersection points
+
+The filling part of my implementation...
+
 ```c++
-void scanLine(uint32_t (*pixels)[SCREEN_WIDTH], int ymin, int ymax, Resources res, vector<Point> poly){
-
-    for(int y = ymin + 1; y < ymax - 1; y++){
-        int count = 0;
-        for(int x = 0; x < SCREEN_WIDTH; x++){
-            Point p(x, y);
-
-            if(intersects(p, poly)){
-                count++;
-            }
-
-            if(count == 1){ // Inside
-                pixels[y][x] = BLACK;
-            }
-            else if(count == 0 || count == 2){ // Outside
-                pixels[y][x] = WHITE;
-            }   
-        }
+// ...
+// Fill while inside polygon
+int k = 0;
+int pos = v[k]; // Current intersection point we are looking for
+int x = 0;
+bool isFilling = false;
+while(x < SCREEN_WIDTH){
+	if(x == pos){
+	    isFilling = !isFilling;
+        pos = v[++k]; // Update the intersection
     }
 
-    update(res);
+    if(isFilling){
+	    pixels[y][x] = BLACK;
+    }
+    else{
+	    pixels[y][x] = WHITE;
+    }
+    x++;
 }
+// ...
 ```
 
 # Sutherland-Hodgman Algorithm

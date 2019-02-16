@@ -2,7 +2,7 @@
     Majid Joseph
     104558520
     Assignment 3
-    February 15, 2019
+    February 18, 2019
 */
 
 #include <cstdio> 
@@ -39,24 +39,23 @@ struct Point{
 void update(Resources);
 void erase(uint32_t (*)[SCREEN_WIDTH], Resources);
 int mainMenu();
-void drawLine(uint32_t (*pixels)[SCREEN_WIDTH], Point p1, Point p2);
-void floodFill(uint32_t (*pixels)[SCREEN_WIDTH], int x, int y, int newColour);
+void drawLine(uint32_t (*)[SCREEN_WIDTH], Point, Point);
+void floodFill(uint32_t (*)[SCREEN_WIDTH], int, int);
 void end(Resources res);
 vector<Point> inputPoly();
 void drawPoly(uint32_t (*)[SCREEN_WIDTH], Resources, vector<Point>);
-int y_intersect(Point p1, Point p2, Point p3, Point p4); 
-int x_intersect(Point p1, Point p2, Point p3, Point p4);
-void suthHodgClip(vector<Point> &poly, vector<Point> clipper);
-void clip(vector<Point> &poly, Point p1, Point p2);
-void liangBarskyHelper(vector<Point> poly, uint32_t (*pixels)[SCREEN_WIDTH], Resources res);
-void liangBarsky(float xmin, float ymin, float xmax, float ymax, Point p1, Point p2, uint32_t (*pixels)[SCREEN_WIDTH]);
-float maxi(float arr[],int n);
-float mini(float arr[], int n);
-bool intersects(Point p, vector<Point> poly);
-void scanLine(uint32_t (*pixels)[SCREEN_WIDTH], int ymin, int ymax, Resources res, vector<Point> poly);
+int y_intersect(Point, Point, Point, Point); 
+int x_intersect(Point, Point, Point, Point);
+void suthHodgClip(vector<Point> &, vector<Point>);
+void clip(vector<Point> &, Point, Point);
+void liangBarskyHelper(vector<Point>, uint32_t (*)[SCREEN_WIDTH], Resources);
+void liangBarsky(float, float, float, float, Point, Point, uint32_t (*)[SCREEN_WIDTH]);
+float maxi(float[],int);
+float mini(float[], int);
+void scanLine(uint32_t (*)[SCREEN_WIDTH], int, int, Resources, vector<Point>);
 void translate(vector<Point> &, Point);
-int getMinY(vector<Point>const& poly);
-int getMaxY(vector<Point>const& poly);
+int getMinY(vector<Point>const&);
+int getMaxY(vector<Point>const&);
 int clipChoose();
 
 int main(){
@@ -160,22 +159,19 @@ int main(){
         }
         else{ // Option 3
             Point p;
-            int pMin, pMax;
             vector<Point> poly = inputPoly();
             suthHodgClip(poly, clipper);
             drawPoly(pixels, res, poly);
             cout << "Enter in point inside polygon: ";
             cin >> p.x >> p.y;
             cout << "Demonstrating Recursive flood fill!\n";
-            floodFill(pixels, p.x, p.y, BLACK);
+            floodFill(pixels, p.x, p.y);
             update(res);
             cout << "Press anything to see scanline algorithm\n";
             read(0, NULL, 1);
             erase(pixels, res);
             drawPoly(pixels, res, poly);
-            pMin = getMinY(poly);
-            pMax = getMaxY(poly);
-            scanLine(pixels, pMin, pMax, res, poly);
+            scanLine(pixels, getMinY(poly), getMaxY(poly), res, poly);
             cout << "Press anything to continue\n";
             read(0, NULL, 1);
         }
@@ -189,20 +185,20 @@ int main(){
 
 // Given a point inside the polygon, the function will recursively fill it
 // Flood Fill algorithm
-void floodFill(uint32_t (*pixels)[SCREEN_WIDTH], int x, int y, int newColour){
+void floodFill(uint32_t (*pixels)[SCREEN_WIDTH], int x, int y){
 
 	// Fail safe
 	if(x <= 0 || x >= SCREEN_WIDTH || y <= 0 || y >= SCREEN_HEIGHT)
 		return;
 
-	if(pixels[y][x] != newColour){
-		pixels[y][x] = newColour;
+	if(pixels[y][x] != BLACK){
+		pixels[y][x] = BLACK;
 		
 		// 4 Nearest neighbours is sufficient
-		floodFill(pixels, x + 1, y, newColour);
-		floodFill(pixels, x, y + 1, newColour);
-		floodFill(pixels, x - 1, y, newColour);
-		floodFill(pixels, x, y - 1, newColour);
+		floodFill(pixels, x + 1, y);
+		floodFill(pixels, x, y + 1);
+		floodFill(pixels, x - 1, y);
+		floodFill(pixels, x, y - 1);
 
         // Problems with 8 nearest neighbours due to not perfect lines
         // being drawn. Algorithm would break out of polygon when one of the
@@ -210,34 +206,6 @@ void floodFill(uint32_t (*pixels)[SCREEN_WIDTH], int x, int y, int newColour){
         // Once it is outside of the polygon, it would fill the entire canvas
         // causing it to segment.
 	}
-}
-
-// Implementation of Scanline algorithm
-// Checks to see if a point intersects any line in the polygon
-bool intersects(Point p, vector<Point> poly){
-
-    for(int i = 0; i < poly.size(); i++){
-        int k = (i + 1) % poly.size();
-
-        // Two consecutive points (a line)
-        Point p1 = poly[i];
-        Point p2 = poly[k];
-        float x1, x2, y1, y2;
-        x1 = p1.x; y1 = p1.y; x2 = p2.x; y2 = p2.y;
-        float m, c;
-
-        if(x1 == x2){ // if vertical line
-            if(p.x == x1) return true;
-        }
-        else{
-            m = (y2-y1)/(x2-x1);
-            c = y2 - m*x2;
-            if(abs((float)p.y - (float)(m*p.x + c)) < 1) { // Under a certain tollerence
-                return true;
-            }
-        }
-    }
-    return false;
 }
 
 // Implementation of Scanline algorithm
@@ -271,27 +239,71 @@ int getMaxY(vector<Point>const& poly){
 // Implementation of Scanline algorithm
 void scanLine(uint32_t (*pixels)[SCREEN_WIDTH], int ymin, int ymax, Resources res, vector<Point> poly){
 
-    for(int y = ymin + 1; y <= ymax; y++){
-        // bool isInside = false;
-        // for(int x = 100; x < 200; x++){
-        //     Point p(x, y);
 
-        //     if(/*intersects(p, poly)*/pixels[p.y][p.x] == BLACK){
-        //         isInside = !isInside;
-        //         cout << "Intersected ";
-        //     }
+    for(int y = ymin + 1; y < ymax; y++){
+        
+        // First we need to find all the lines that will intersect the current scanline
+        vector<pair<Point, Point>>edges;
+        for(int i = 0; i < poly.size(); i++){
+            int k = (i + 1) % poly.size();
+            Point p1 = poly[i];
+            Point p2 = poly[k];
+            if(((y >= p1.y && y <= p2.y) || (y <= p1.y && y >= p2.y)) && (p1.y != p2.y)){
+                edges.push_back(make_pair(p1,p2));
+            }
+        }
 
-        //     if(isInside){ // Inside
-        //         pixels[y][x] = BLACK;
-        //     }
-        //     else{ // Outside
-        //         pixels[y][x] = WHITE;
-        //     }   
-        // }
+        // Find the intersection X point of each line
+        vector<int>v;
+        for(int i = 0; i < edges.size(); i++){
+            Point pi = edges[i].first;
+            Point pf = edges[i].second;
+            double m = (double)(pf.y - pi.y)/(double)(pf.x - pi.x);
+            double c = pf.y - (double)m*(double)pf.x;
+            int x;
+            if(pi.x == pf.x){ // vertical line
+                x = pi.x;
+            }
+            else{
+                x = round((y - c)/m); 
+            }
+            v.push_back(x);
+        }
+
+        // Sort the intersections by X
+        sort(v.begin(), v.end());
+        
+        // Removing all duplicates for the case of intersection at a point
+        vector<int>dups;
+        for(auto i = v.begin(); i != v.end() - 1; ++i){
+            if(*i == *(i+1)){
+                dups.push_back(*i);
+            }
+        }
+        for(auto i = dups.begin(); i != dups.end(); ++i){
+            v.erase(remove(v.begin(), v.end(), *i), v.end());
+        }
+
+        // Fill while inside polygon
+        int k = 0;
+        int pos = v[k]; // Current intersection point we are looking for
+        int x = 0;
+        bool isFilling = false;
+        while(x < SCREEN_WIDTH){
+            if(x == pos){
+                isFilling = !isFilling;
+                pos = v[++k]; // Update the intersection
+            }
+
+            if(isFilling){
+                pixels[y][x] = BLACK;
+            }
+            else{
+                pixels[y][x] = WHITE;
+            }
+            x++;
+        }
         update(res);
-        // cout << "\n";
-        // //sleep(1);
-        pixels[y][150] = BLACK;
     }
 
 }
@@ -597,7 +609,6 @@ void drawLine(uint32_t (*pixels)[SCREEN_WIDTH], Point p1, Point p2){
     
     int x1, y1, x2, y2;
     x1 = p1.x; y1 = p1.y; x2 = p2.x; y2 = p2.y;
-    int colour = BLACK;
 
     bool steep = (fabs(y2 - y1) > fabs(x2 - x1));
     if(steep){
@@ -622,10 +633,10 @@ void drawLine(uint32_t (*pixels)[SCREEN_WIDTH], Point p1, Point p2){
     for(int x=(int)x1; x<maxX; x++){
         
         if(steep){
-            pixels[x][y] = colour;
+            pixels[x][y] = BLACK;
         }
         else{
-            pixels[y][x] = colour;
+            pixels[y][x] = BLACK;
         }
 
         error -= dy;
